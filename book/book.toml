@@ -1,0 +1,5 @@
+[book]
+authors = ["Lyle Dean"]
+language = "en"
+src = "src"
+title = "Strava MCP"

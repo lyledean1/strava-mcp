@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"stravamcp/service"
+	"time"
 )
 
 type ActivityController interface {
@@ -19,7 +20,7 @@ func NewActivityController(activityService service.ActivityService) ActivityCont
 }
 
 func (ctrl *activityController) RefreshActivities(c *gin.Context) {
-	err := ctrl.activityService.ProcessActivities()
+	err := ctrl.activityService.ProcessActivities(time.Now().Add(time.Hour * 24 * -365))
 	if err != nil {
 		c.JSON(500, err)
 		return

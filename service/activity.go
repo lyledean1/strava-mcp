@@ -14,7 +14,7 @@ import (
 )
 
 type ActivityService interface {
-	ProcessActivities() error
+	ProcessActivities(after time.Time) error
 	GetAllActivities(_ context.Context, filter string, before *time.Time, after *time.Time) ([]model.AthleteActivity, error)
 	GetActivityStream(_ context.Context, id string) (*ActivityStreamData, error)
 }
@@ -28,12 +28,12 @@ func NewActivityService(stravaClient client.StravaClient, tokenRepo repo.TokenRe
 	return &activityService{stravaClient: stravaClient, tokenRepo: tokenRepo, storage: storage}
 }
 
-func (a *activityService) ProcessActivities() error {
+func (a *activityService) ProcessActivities(after time.Time) error {
 	token, err := a.tokenRepo.Get()
 	if err != nil {
 		return err
 	}
-	activities, err := a.stravaClient.GetAllAthleteActivities(1727654400, token.AccessToken)
+	activities, err := a.stravaClient.GetAllAthleteActivities(int(after.Unix()), token.AccessToken)
 	if err != nil {
 		return err
 	}
@@ -71,6 +71,15 @@ func (a *activityService) ProcessActivities() error {
 }
 
 func (a *activityService) GetAllActivities(_ context.Context, filter string, before *time.Time, after *time.Time) ([]model.AthleteActivity, error) {
+	defaultAfter := after
+	if defaultAfter == nil {
+		oneDayAgo := time.Now().Add(time.Hour * -24 * 7)
+		defaultAfter = &oneDayAgo
+	}
+	err := a.ProcessActivities(*defaultAfter)
+	if err != nil {
+		return nil, err
+	}
 	allActivities, err := a.storage.GetAllAthleteActivities()
 	if err != nil {
 		return nil, err

@@ -131,14 +131,19 @@ func (s *MCPServer) getToolList(req MCPRequest) MCPResponse {
 						"required": []string{"activity_id"},
 					},
 				},
-				// comment this out for the time being, don't want it to be manually refreshing
-				//{
-				//	"name":        "refresh_activities",
-				//	"description": "Refresh activities from Strava API to get latest data",
-				//	"inputSchema": map[string]interface{}{
-				//		"type": "object",
-				//	},
-				//},
+				{
+					"name":        "refresh_activities",
+					"description": "Refresh activities from Strava API to get latest data",
+					"inputSchema": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"after": map[string]interface{}{
+								"type":        "string",
+								"description": "Refresh activities after this date (ISO 8601 format). Defaults to 1 month ago if not provided",
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -181,7 +186,7 @@ func (s *MCPServer) handleToolCall(req MCPRequest) MCPResponse {
 		return s.getActivityStream(req, arguments, c)
 
 	case "refresh_activities":
-		return s.refreshActivities(req)
+		return s.refreshActivities(req, arguments)
 
 	default:
 		return MCPResponse{
@@ -428,8 +433,25 @@ func (s *MCPServer) getActivityStream(req MCPRequest, arguments map[string]inter
 	}
 }
 
-func (s *MCPServer) refreshActivities(req MCPRequest) MCPResponse {
-	err := s.activityService.ProcessActivities()
+func (s *MCPServer) refreshActivities(req MCPRequest, arguments map[string]interface{}) MCPResponse {
+	afterDate := time.Now().Add(time.Hour * 24 * -30)
+
+	if a, ok := arguments["after"].(string); ok && a != "" {
+		if parsed, err := time.Parse(time.RFC3339, a); err == nil {
+			afterDate = parsed
+		} else {
+			return MCPResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error: &MCPError{
+					Code:    -32602,
+					Message: "Invalid 'after' date format. Use ISO 8601 format (e.g., 2024-01-15T00:00:00Z)",
+				},
+			}
+		}
+	}
+
+	err := s.activityService.ProcessActivities(afterDate)
 	if err != nil {
 		return MCPResponse{
 			JSONRPC: "2.0",
@@ -441,6 +463,9 @@ func (s *MCPServer) refreshActivities(req MCPRequest) MCPResponse {
 		}
 	}
 
+	// Create a more descriptive response
+	responseText := fmt.Sprintf("Activities refreshed successfully from Strava API (after: %s)", afterDate.Format("2006-01-02"))
+
 	return MCPResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
@@ -448,7 +473,7 @@ func (s *MCPServer) refreshActivities(req MCPRequest) MCPResponse {
 			"content": []map[string]interface{}{
 				{
 					"type": "text",
-					"text": "Activities refreshed successfully from Strava API",
+					"text": responseText,
 				},
 			},
 		},

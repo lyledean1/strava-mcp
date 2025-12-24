@@ -359,7 +359,7 @@ func (s *MCPServer) getActivities(req MCPRequest, arguments map[string]interface
 		ID:      req.ID,
 		Result: map[string]interface{}{
 			"content": contentItems,
-			"data":    activities, // Keep the raw data for programmatic access if needed
+			"isError": false,
 		},
 	}
 }
@@ -428,7 +428,7 @@ func (s *MCPServer) getActivityStream(req MCPRequest, arguments map[string]inter
 					"text": summaryText,
 				},
 			},
-			"stream_data": activityStream,
+			"isError": false,
 		},
 	}
 }
@@ -476,6 +476,7 @@ func (s *MCPServer) refreshActivities(req MCPRequest, arguments map[string]inter
 					"text": responseText,
 				},
 			},
+			"isError": false,
 		},
 	}
 }
